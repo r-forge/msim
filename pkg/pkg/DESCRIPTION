@@ -1,0 +1,14 @@
+Package: msim
+Type: Package
+Title: This package implements the method of simulated moments for the
+        GLMM logit mixed model as described in Jiang's (1998) article,
+        Consistent Estimators in Generalized Linear Mixed Models.
+Version: 1.0
+Date: 2013-09-13
+Author: Lindsey Dietz
+Maintainer: Lindsey Dietz <diet0146@umn.edu>
+Depends: rootSolve, nleqslv, rootSolve ,lme4, knitr
+Description: The package contains 5 functions.  Currently, it is able to implement a specific version of Jiang's (1998) paper using solvers provided by the packages nleqslv and rootSolve.
+License: GPL-2
+Imports: nleqslv, rootSolve, lme4, knitr
+

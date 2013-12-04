@@ -1,0 +1,644 @@
+\documentclass{article}\usepackage{graphicx, color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.2, 0.2, 0.2}
+\newcommand{\hlnumber}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlfunctioncall}[1]{\textcolor[rgb]{0.501960784313725,0,0.329411764705882}{\textbf{#1}}}%
+\newcommand{\hlstring}[1]{\textcolor[rgb]{0.6,0.6,1}{#1}}%
+\newcommand{\hlkeyword}[1]{\textcolor[rgb]{0,0,0}{\textbf{#1}}}%
+\newcommand{\hlargument}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hlcomment}[1]{\textcolor[rgb]{0.180392156862745,0.6,0.341176470588235}{#1}}%
+\newcommand{\hlroxygencomment}[1]{\textcolor[rgb]{0.43921568627451,0.47843137254902,0.701960784313725}{#1}}%
+\newcommand{\hlformalargs}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hleqformalargs}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hlassignement}[1]{\textcolor[rgb]{0,0,0}{\textbf{#1}}}%
+\newcommand{\hlpackage}[1]{\textcolor[rgb]{0.588235294117647,0.709803921568627,0.145098039215686}{#1}}%
+\newcommand{\hlslot}[1]{\textit{#1}}%
+\newcommand{\hlsymbol}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlprompt}[1]{\textcolor[rgb]{0.2,0.2,0.2}{#1}}%
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+\usepackage{indentfirst}
+\usepackage{natbib}
+\usepackage{url}
+\usepackage{pdfpages}  
+\usepackage[fleqn]{amsmath}    % need for subequations
+\usepackage{graphicx}   % need for figures
+\usepackage{verbatim}   % useful for program listings
+\usepackage{color}      % use if color is used in text
+\usepackage{subfigure}  % use for side-by-side figures
+\usepackage{hyperref}   % use for hypertext links, including those to external documents and URLs
+\usepackage[normalem]{ulem}
+\usepackage{amsfonts}
+\usepackage{fullpage}   
+\usepackage{natbib}  
+\usepackage[small,compact]{titlesec}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{} 
+\begin{document}
+
+%\VignetteIndexEntry{msim_vignette}
+%\VignetteEngine{knitr} 
+%\VignettePackage{msim}
+\begin{center}
+\Large
+{\tt msim} Package Vignette
+\normalsize
+\end{center}
+
+
+
+
+\section{Background}
+A major difficulty in making inference about general linear mixed models (GLMMs) has been computational. To overcome numerical difficulties, alternative methods for inference have been proposed.  The first is the use of Laplace approximation which is utilized within the R package {\tt lme4}.  The second is a form of likelihood evaluation which may be in the form of Monte Carlo, numerical integral approximation, or variational approximations.  \cite{jiang} proposed the method of simulated moments (MSM)  which will be the focus of the package.  \\
+
+MSM is methodology which is computationally feasible and consistent.  In applying the usual method of moments, one first identifies a set of sufficient statistics. A set of estimating equations is obtained by equating sample moments of the sufficient statistics to their expectations. Such expectations typically involve integrals, the highest dimension of which equals the number of sources of random effects.  Expectations are then simulated.  Finally, parameters are estimated by an appropriate optimization algorithm to solve the nonlinear system of equations.\\
+
+This limited scope package has implemented the MSM for a logistic mixed model.  In the future, it may be expanded to include other exponential families as well as more capabilities for users.\\
+
+\section{Statistical Setup}
+
+Let $Y_{ij}$ be a Bernoulli response with $logit(P(y_{ij}=1)|\xi_1,...,\xi_m)=\mu+ \sigma\xi_i$, for $i=1,...,m$ independent subjects, with $j=1,..,n$ (possibly correlated) measurements per subject.   This implies that $Y_{ij}=1$ with probability $\frac{\exp(\mu+\sigma\xi_i)}{1+\exp(\mu+\sigma\xi_i)}$.\\
+
+Let $h_{\mu,\sigma}(x)=\frac{\exp(\mu+\sigma x)}{1+\exp(\mu+\sigma x)}$ and $Y_{i\cdot}=\sum_{j=1}^n{Y_{ij}}$.  Then we see that $E(Y_{i\cdot})=nh_{\mu,\sigma}(\xi)$ and  $E(Y_{i\cdot}^2)=nh_{\mu,\sigma}(\xi)+n(n-1)h_\theta^2(\xi)$.\\
+
+Thus, the system of equations becomes:
+\begin{align*}
+\frac{1}{mn}\sum_{i=1}^m y_{i\cdot}=E(h_\theta(\xi))\\
+\frac{1}{(mn)(n-1)}\sum_{i=1}^m (y_{i\cdot}^2-y_{i\cdot})=E(h_\theta^2(\xi))
+\end{align*}
+
+Now, we generate $\xi_i \sim N(0,1)$ for $i=1,...,K$ and use these to generate estimates for the right sides of the system of equations. 
+
+\begin{align*}
+\frac{1}{mn}\sum_{i=1}^m y_{i\cdot}=\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}(\xi_i)\\
+\frac{1}{(mn)(m-1)}\sum_{i=1}^m (y_{i\cdot}^2-y_{i\cdot})=\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}^2(\xi_i)
+\end{align*}
+
+\newpage\section{Reproducing Results}
+
+We first load the {\tt msim} package in the following manner:
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlfunctioncall{library}(msim)
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+The next thing we will try to do is replicate the results of table 1 in Jiang (1998).  His table is as follows:\\
+\begin{tabular}{c c c c c}
+$m$ & $n$ &True parameter &Average of estimators & SE estimators\\
+\hline
+20& 2& $\mu=0.2$& 0.305& 0.516\\
+20& 2& $\sigma^2=1.0$& 2.895& 3.421\\
+20& 6& $\mu=0.2$& 0.240& 0.302\\
+20& 6& $\sigma^2=1.0$& 1.124& 0.836\\
+80& 2& $\mu=0.2$& 0.180& 0.216\\
+80& 2& $\sigma^2=1.0$& 1.077& 0.831\\
+80& 6& $\mu=0.2$& 0.184 & 0.135\\
+80& 6& $\sigma^2=1.0$& 1.031& 0.340\\\\
+\end{tabular}
+
+Several assumptions were made to do the replication since minimal information was present in the article.  First, the starting values used by Jiang were not available.  For this document, we utilized starting values very near the actual values.  Also, the random normals values used were not documented, so the random normals generated using the seed 1313 were used for each of the samples.\\  
+
+In order to use simulate the data for the examples, we utilized the {\tt sim.data.fun} function.  We can then extract the sums by subject. 
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# Simulation 1}
+ys1 <- \hlfunctioncall{sim.data.fun}(m = 20, n = \hlfunctioncall{rep}(2, 20), true.mu = 0.2, true.sigma = 1, set.seed = 1313)
+y.i.test1 <- ys1$y.i
+\hlcomment{# Simulation 2}
+ys2 <- \hlfunctioncall{sim.data.fun}(m = 20, n = \hlfunctioncall{rep}(6, 20), true.mu = 0.2, true.sigma = 1, set.seed = 1313)
+y.i.test2 <- ys2$y.i
+\hlcomment{# Simulation 3}
+ys3 <- \hlfunctioncall{sim.data.fun}(m = 80, n = \hlfunctioncall{rep}(2, 80), true.mu = 0.2, true.sigma = 1, set.seed = 1313)
+y.i.test3 <- ys3$y.i
+\hlcomment{# Simulation 4}
+ys4 <- \hlfunctioncall{sim.data.fun}(m = 80, n = \hlfunctioncall{rep}(6, 80), true.mu = 0.2, true.sigma = 1, set.seed = 1313)
+y.i.test4 <- ys4$y.i
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+The data will be generated in the way the functions in this package will be using it.  Let's take a look at the output of the {\tt sim.data.fun}.  If one wishes to enter real data, it must be formatted like the \$y object. 
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+ys1
+\end{alltt}
+\begin{verbatim}
+## $y
+##       [,1] [,2]
+##  [1,]    0    1
+##  [2,]    1    0
+##  [3,]    1    1
+##  [4,]    1    1
+##  [5,]    1    1
+##  [6,]    0    0
+##  [7,]    0    0
+##  [8,]    0    0
+##  [9,]    1    1
+## [10,]    1    1
+## [11,]    1    1
+## [12,]    1    1
+## [13,]    0    0
+## [14,]    0    1
+## [15,]    1    0
+## [16,]    0    0
+## [17,]    1    1
+## [18,]    1    0
+## [19,]    1    0
+## [20,]    1    1
+## 
+## $y.i
+##  [1] 1 1 2 2 2 0 0 0 2 2 2 2 0 1 1 0 2 1 1 2
+## 
+## $n.i
+##  [1] 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+Now lets actually run the {\tt msm} function to produce the estimates for each of the simulations.  Notice that the arguments $m$ and $n$ for the the {\tt msm} function must match that of the data.\\
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# Simulation 1}
+estimates1 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 20, n = \hlfunctioncall{rep}(2, 
+    20), y.i = y.i.test1, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulation 2}
+estimates2 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 20, n = \hlfunctioncall{rep}(6, 
+    20), y.i = y.i.test2, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulation 3}
+estimates3 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(2, 
+    80), y.i = y.i.test3, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulation 4}
+estimates4 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(6, 
+    80), y.i = y.i.test4, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+table <- \hlfunctioncall{round}(\hlfunctioncall{rbind}(\hlfunctioncall{c}(estimates1$mu, estimates1$mu.se), \hlfunctioncall{c}(estimates1$sigma2, 
+    estimates1$sigma2.se), \hlfunctioncall{c}(estimates2$mu, estimates2$mu.se), \hlfunctioncall{c}(estimates2$sigma2, 
+    estimates2$sigma2.se), \hlfunctioncall{c}(estimates3$mu, estimates3$mu.se), \hlfunctioncall{c}(estimates3$sigma2, 
+    estimates3$sigma2.se), \hlfunctioncall{c}(estimates4$mu, estimates4$mu.se), \hlfunctioncall{c}(estimates4$sigma2, 
+    estimates4$sigma2.se)), 3)
+\hlfunctioncall{rownames}(table) <- \hlfunctioncall{c}(\hlstring{"1_mu"}, \hlstring{"1_sigma2"}, \hlstring{"2_mu"}, \hlstring{"2_sigma2"}, \hlstring{"3_mu"}, \hlstring{"3_sigma2"}, 
+    \hlstring{"4_mu"}, \hlstring{"4_sigma2"})
+\hlfunctioncall{colnames}(table) <- \hlfunctioncall{c}(\hlstring{"Estimate"}, \hlstring{"SE"})
+table
+\end{alltt}
+\begin{verbatim}
+##          Estimate    SE
+## 1_mu        0.652 0.002
+## 1_sigma2    3.699 0.036
+## 2_mu        0.343 0.000
+## 2_sigma2    0.629 0.001
+## 3_mu        0.142 0.000
+## 3_sigma2    0.628 0.001
+## 4_mu        0.070 0.000
+## 4_sigma2    0.931 0.000
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+It is clear that the numbers I produced were fairly different from the author, which may be due to shortfalls of the methodology or other undocumented differences between the author's setup and the setup used here.\\
+
+We can also try out the methodology without giving it true values of the parameters.  This will change the methodology used for producing standard errors.  They will now be heavily based on the number of simulations done.  This is something to be improved in future versions of this package and should not be consider reliable at this point.  We will also see the estimates change slightly since new sets of random normals were generated during the estimation process.
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# Simulation 1}
+est.notrue1 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 20, n = \hlfunctioncall{rep}(2, 
+    20), y.i = y.i.test1, start = \hlfunctioncall{c}(0.25, 1.2))
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1; Simulation SE= sd(parameter est.)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulation 2}
+est.notrue2 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 20, n = \hlfunctioncall{rep}(6, 
+    20), y.i = y.i.test2, start = \hlfunctioncall{c}(0.25, 1.2))
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1; Simulation SE= sd(parameter est.)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulation 3}
+est.notrue3 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(2, 
+    80), y.i = y.i.test3, start = \hlfunctioncall{c}(0.25, 1.2))
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1; Simulation SE= sd(parameter est.)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulation 4}
+est.notrue4 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(6, 
+    80), y.i = y.i.test4, start = \hlfunctioncall{c}(0.25, 1.2))
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1; Simulation SE= sd(parameter est.)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+table <- \hlfunctioncall{round}(\hlfunctioncall{rbind}(\hlfunctioncall{c}(est.notrue1$mu, est.notrue1$mu.se), \hlfunctioncall{c}(est.notrue1$sigma2, 
+    est.notrue1$sigma2.se), \hlfunctioncall{c}(est.notrue2$mu, est.notrue2$mu.se), \hlfunctioncall{c}(est.notrue2$sigma2, 
+    est.notrue2$sigma2.se), \hlfunctioncall{c}(est.notrue3$mu, est.notrue3$mu.se), \hlfunctioncall{c}(est.notrue3$sigma2, 
+    est.notrue3$sigma2.se), \hlfunctioncall{c}(est.notrue4$mu, est.notrue4$mu.se), \hlfunctioncall{c}(est.notrue4$sigma2, 
+    est.notrue4$sigma2.se)), 3)
+\hlfunctioncall{rownames}(table) <- \hlfunctioncall{c}(\hlstring{"1_mu"}, \hlstring{"1_sigma2"}, \hlstring{"2_mu"}, \hlstring{"2_sigma2"}, \hlstring{"3_mu"}, \hlstring{"3_sigma2"}, 
+    \hlstring{"4_mu"}, \hlstring{"4_sigma2"})
+\hlfunctioncall{colnames}(table) <- \hlfunctioncall{c}(\hlstring{"Estimate"}, \hlstring{"SE"})
+table
+\end{alltt}
+\begin{verbatim}
+##          Estimate    SE
+## 1_mu        0.650 0.002
+## 1_sigma2    3.691 0.007
+## 2_mu        0.345 0.001
+## 2_sigma2    0.630 0.001
+## 3_mu        0.143 0.001
+## 3_sigma2    0.630 0.001
+## 4_mu        0.070 0.001
+## 4_sigma2    0.931 0.001
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+\newpage\section{Bootstrap Correction}
+
+In order to try to eliminate some of the bias in the estimates, a bootstrap bias correction function is implemented in the package.  Currently, this is quite computationally intensive and it is not recommended to do a high number.  Doing more bootstrap samples may not necessarily improve estimates.  However, even doing a few seemed to improve some of the estimates for the replicated example.  Again, notice that the arguments $m$ and $n$ for the the {\tt boot.msm} function must match that of the data.  The implementation is as follows:
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# Simulation 1}
+boot.est1 <- \hlfunctioncall{boot.msm}(msm.est = estimates1, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 20, n = \hlfunctioncall{rep}(2, 20), start = \hlfunctioncall{c}(0.25, 1.2))
+\hlcomment{# Simulation 2}
+boot.est2 <- \hlfunctioncall{boot.msm}(msm.est = estimates2, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 20, n = \hlfunctioncall{rep}(6, 20), start = \hlfunctioncall{c}(0.25, 1.2))
+\hlcomment{# Simulation 3}
+boot.est3 <- \hlfunctioncall{boot.msm}(msm.est = estimates3, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(2, 80), start = \hlfunctioncall{c}(0.25, 1.2))
+\hlcomment{# Simulation 4}
+boot.est4 <- \hlfunctioncall{boot.msm}(msm.est = estimates4, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(6, 80), start = \hlfunctioncall{c}(0.25, 1.2))
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# Compiling the bootstrap information into a table}
+boottable <- \hlfunctioncall{round}(\hlfunctioncall{rbind}(\hlfunctioncall{c}(boot.est1$boot.mu, boot.est1$boot.mu.se), \hlfunctioncall{c}(boot.est1$boot.sigma2, 
+    boot.est1$boot.sigma2.se), \hlfunctioncall{c}(boot.est2$boot.mu, boot.est2$boot.mu.se), \hlfunctioncall{c}(boot.est2$boot.sigma2, 
+    boot.est2$boot.sigma2.se), \hlfunctioncall{c}(boot.est3$boot.mu, boot.est3$boot.mu.se), \hlfunctioncall{c}(boot.est3$boot.sigma2, 
+    boot.est3$boot.sigma2.se), \hlfunctioncall{c}(boot.est4$boot.mu, boot.est4$boot.mu.se), \hlfunctioncall{c}(boot.est4$boot.sigma2, 
+    boot.est4$boot.sigma2.se)), 3)
+\hlfunctioncall{rownames}(boottable) <- \hlfunctioncall{c}(\hlstring{"1_mu"}, \hlstring{"1_sigma2"}, \hlstring{"2_mu"}, \hlstring{"2_sigma2"}, \hlstring{"3_mu"}, \hlstring{"3_sigma2"}, 
+    \hlstring{"4_mu"}, \hlstring{"4_sigma2"})
+\hlfunctioncall{colnames}(boottable) <- \hlfunctioncall{c}(\hlstring{"Boot Estimate"}, \hlstring{"Boot SE"})
+boottable
+\end{alltt}
+\begin{verbatim}
+##          Boot Estimate Boot SE
+## 1_mu             0.692   0.268
+## 1_sigma2         5.169   1.435
+## 2_mu             0.442   0.104
+## 2_sigma2         0.570   0.223
+## 3_mu             0.015   0.063
+## 3_sigma2         1.019   0.294
+## 4_mu             0.108   0.056
+## 4_sigma2         0.925   0.100
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+\newpage\section{Comparison to lme4}
+
+We can compare this implementation with the popular {\tt lme4} package.  The results indicated that {\tt lme4} didn't do well in estimating parameters.
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlfunctioncall{library}(lme4)
+\hlcomment{# Creating the lme4 style data set for simulation 1}
+lmecheck1 <- \hlfunctioncall{data.frame}(ys1$y)
+lmecheck11 <- \hlfunctioncall{cbind}(1:20, lmecheck1$X1)
+lmecheck12 <- \hlfunctioncall{cbind}(1:20, lmecheck1$X2)
+lmecheck.final.1 <- \hlfunctioncall{data.frame}(\hlfunctioncall{rbind}(lmecheck11, lmecheck12))
+\hlfunctioncall{names}(lmecheck.final.1) <- \hlfunctioncall{c}(\hlstring{"subject"}, \hlstring{"measurement"})
+
+\hlcomment{# Creating the lme4 style data set for simulation 2}
+lmecheck2 <- \hlfunctioncall{data.frame}(ys2$y)
+lmecheck21 <- \hlfunctioncall{cbind}(1:20, lmecheck2$X1)
+lmecheck22 <- \hlfunctioncall{cbind}(1:20, lmecheck2$X2)
+lmecheck.final.2 <- \hlfunctioncall{data.frame}(\hlfunctioncall{rbind}(lmecheck21, lmecheck22))
+\hlfunctioncall{names}(lmecheck.final.2) <- \hlfunctioncall{c}(\hlstring{"subject"}, \hlstring{"measurement"})
+
+\hlcomment{# Creating the lme4 style data set for simulation 3}
+lmecheck3 <- \hlfunctioncall{data.frame}(ys3$y)
+lmecheck31 <- \hlfunctioncall{cbind}(1:80, lmecheck3$X1)
+lmecheck32 <- \hlfunctioncall{cbind}(1:80, lmecheck3$X2)
+lmecheck.final.3 <- \hlfunctioncall{data.frame}(\hlfunctioncall{rbind}(lmecheck31, lmecheck32))
+\hlfunctioncall{names}(lmecheck.final.3) <- \hlfunctioncall{c}(\hlstring{"subject"}, \hlstring{"measurement"})
+
+\hlcomment{# Creating the lme4 style data set for simulation 4}
+lmecheck4 <- \hlfunctioncall{data.frame}(ys4$y)
+lmecheck41 <- \hlfunctioncall{cbind}(1:80, lmecheck4$X1)
+lmecheck42 <- \hlfunctioncall{cbind}(1:80, lmecheck4$X2)
+lmecheck.final.4 <- \hlfunctioncall{data.frame}(\hlfunctioncall{rbind}(lmecheck41, lmecheck42))
+\hlfunctioncall{names}(lmecheck.final.4) <- \hlfunctioncall{c}(\hlstring{"subject"}, \hlstring{"measurement"})
+
+\hlcomment{# Running the glmer model for each of the data sets}
+fm1 <- \hlfunctioncall{glmer}(measurement ~ (1 | subject), lmecheck.final.1, family = binomial)
+\hlfunctioncall{summary}(fm1)
+\end{alltt}
+\begin{verbatim}
+## Generalized linear mixed model fit by the Laplace approximation 
+## Formula: measurement ~ (1 | subject) 
+##    Data: lmecheck.final.1 
+##  AIC  BIC logLik deviance
+##   56 59.3    -26       52
+## Random effects:
+##  Groups  Name        Variance Std.Dev.
+##  subject (Intercept) 2.23     1.49    
+## Number of obs: 40, groups: subject, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error z value Pr(>|z|)
+## (Intercept)    0.600      0.491    1.22     0.22
+\end{verbatim}
+\begin{alltt}
+fm2 <- \hlfunctioncall{glmer}(measurement ~ (1 | subject), lmecheck.final.2, family = binomial)
+\hlfunctioncall{summary}(fm2)
+\end{alltt}
+\begin{verbatim}
+## Generalized linear mixed model fit by the Laplace approximation 
+## Formula: measurement ~ (1 | subject) 
+##    Data: lmecheck.final.2 
+##   AIC  BIC logLik deviance
+##  58.5 61.9  -27.2     54.5
+## Random effects:
+##  Groups  Name        Variance Std.Dev.
+##  subject (Intercept) 0.19     0.436   
+## Number of obs: 40, groups: subject, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error z value Pr(>|z|)
+## (Intercept)    0.317      0.335    0.94     0.34
+\end{verbatim}
+\begin{alltt}
+fm3 <- \hlfunctioncall{glmer}(measurement ~ (1 | subject), lmecheck.final.3, family = binomial)
+\hlfunctioncall{summary}(fm3)
+\end{alltt}
+\begin{verbatim}
+## Generalized linear mixed model fit by the Laplace approximation 
+## Formula: measurement ~ (1 | subject) 
+##    Data: lmecheck.final.3 
+##  AIC BIC logLik deviance
+##  225 231   -110      221
+## Random effects:
+##  Groups  Name        Variance Std.Dev.
+##  subject (Intercept) 0.307    0.554   
+## Number of obs: 160, groups: subject, 80
+## 
+## Fixed effects:
+##             Estimate Std. Error z value Pr(>|z|)
+## (Intercept)    0.135      0.171    0.79     0.43
+\end{verbatim}
+\begin{alltt}
+fm4 <- \hlfunctioncall{glmer}(measurement ~ (1 | subject), lmecheck.final.4, family = binomial)
+\hlfunctioncall{summary}(fm4)
+\end{alltt}
+\begin{verbatim}
+## Generalized linear mixed model fit by the Laplace approximation 
+## Formula: measurement ~ (1 | subject) 
+##    Data: lmecheck.final.4 
+##  AIC BIC logLik deviance
+##  226 232   -111      222
+## Random effects:
+##  Groups  Name        Variance Std.Dev.
+##  subject (Intercept) 0.107    0.327   
+## Number of obs: 160, groups: subject, 80
+## 
+## Fixed effects:
+##             Estimate Std. Error z value Pr(>|z|)
+## (Intercept)  -0.0514     0.1625   -0.32     0.75
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+\newpage\section{Asymptotic Properties}
+
+Let's take a look at how MSM does when we give it a lot more observations per subject.
+
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# Simulating the data for 80 subjects with 20 obs each}
+ys.more <- \hlfunctioncall{sim.data.fun}(m = 80, n = \hlfunctioncall{rep}(20, 80), true.mu = 0.2, true.sigma = 1, 
+    set.seed = 1313)
+y.i.more1 <- ys.more$y.i
+estimates.more.1 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 80, 
+    n = \hlfunctioncall{rep}(20, 80), y.i = y.i.more1, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulating the data for 80 subjects with 40 obs each}
+ys.more.2 <- \hlfunctioncall{sim.data.fun}(m = 80, n = \hlfunctioncall{rep}(40, 80), true.mu = 0.2, true.sigma = 1, 
+    set.seed = 1313)
+y.i.more2 <- ys.more.2$y.i
+estimates.more.2 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 80, 
+    n = \hlfunctioncall{rep}(40, 80), y.i = y.i.more2, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulating the data for 200 subjects with 75 obs each}
+ys.more.3 <- \hlfunctioncall{sim.data.fun}(m = 200, n = \hlfunctioncall{rep}(75, 200), true.mu = 0.2, true.sigma = 1, 
+    set.seed = 1313)
+y.i.more3 <- ys.more.3$y.i
+estimates.more.3 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 200, 
+    n = \hlfunctioncall{rep}(75, 200), y.i = y.i.more3, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, 
+    true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+\hlcomment{# Simulating the data for 200 subjects with 100 obs each}
+ys.more.4 <- \hlfunctioncall{sim.data.fun}(m = 200, n = \hlfunctioncall{rep}(100, 200), true.mu = 0.2, true.sigma = 1, 
+    set.seed = 1313)
+y.i.more4 <- ys.more.4$y.i
+estimates.more.4 <- \hlfunctioncall{msm}(family = \hlstring{"binomial"}, nsim = 1000, K = 1000, m = 200, 
+    n = \hlfunctioncall{rep}(100, 200), y.i = y.i.more4, start = \hlfunctioncall{c}(0.25, 1.2), true.mu = 0.2, 
+    true.sigma = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "nsim>1 with true values; Simulation SE= sqrt(MSE)/sqrt(nsim)"
+\end{verbatim}
+\begin{alltt}
+
+table <- \hlfunctioncall{round}(\hlfunctioncall{rbind}(\hlfunctioncall{c}(estimates.more.1$mu, estimates.more.1$mu.se), \hlfunctioncall{c}(estimates.more.1$sigma2, 
+    estimates.more.1$sigma2.se), \hlfunctioncall{c}(estimates.more.2$mu, estimates.more.2$mu.se), 
+    \hlfunctioncall{c}(estimates.more.2$sigma2, estimates.more.2$sigma2.se), \hlfunctioncall{c}(estimates.more.3$mu, 
+        estimates.more.3$mu.se), \hlfunctioncall{c}(estimates.more.3$sigma2, estimates.more.3$sigma3.se), 
+    \hlfunctioncall{c}(estimates.more.4$mu, estimates.more.4$mu.se), \hlfunctioncall{c}(estimates.more.4$sigma2, 
+        estimates.more.4$sigma2.se)), 3)
+\hlfunctioncall{rownames}(table) <- \hlfunctioncall{c}(\hlstring{"1_mu"}, \hlstring{"1_sigma2"}, \hlstring{"2_mu"}, \hlstring{"2_sigma2"}, \hlstring{"3_mu"}, \hlstring{"3_sigma2"}, 
+    \hlstring{"4_mu"}, \hlstring{"4_sigma2"})
+\hlfunctioncall{colnames}(table) <- \hlfunctioncall{c}(\hlstring{"Estimate"}, \hlstring{"SE"})
+table
+\end{alltt}
+\begin{verbatim}
+##          Estimate    SE
+## 1_mu        0.107 0.000
+## 1_sigma2    0.905 0.000
+## 2_mu        0.137 0.000
+## 2_sigma2    0.880 0.000
+## 3_mu        0.184 0.000
+## 3_sigma2    0.843 0.843
+## 4_mu        0.203 0.000
+## 4_sigma2    0.846 0.000
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+We can also implement the bootstrapping correction in the following manner.
+A lot of observations in combination with the bootstrapping bias correction seem to give much better estimates overall.  This gives us some confirmation that there is at least some asymptotic correctness to what this method is doing.
+\begin{knitrout}\footnotesize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcomment{# 80 subjects with 20 obs each}
+boot.more1 <- \hlfunctioncall{boot.msm}(msm.est = estimates.more.1, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(20, 80), start = \hlfunctioncall{c}(0.25, 1.2))
+\hlcomment{# 80 subjects with 40 obs each}
+boot.more2 <- \hlfunctioncall{boot.msm}(msm.est = estimates.more.2, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 80, n = \hlfunctioncall{rep}(40, 80), start = \hlfunctioncall{c}(0.25, 1.2))
+\hlcomment{# 200 subjects with 75 obs each}
+boot.more3 <- \hlfunctioncall{boot.msm}(msm.est = estimates.more.3, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 200, n = \hlfunctioncall{rep}(75, 200), start = \hlfunctioncall{c}(0.25, 1.2))
+\hlcomment{# 200 subjects with 100 obs each}
+boot.more4 <- \hlfunctioncall{boot.msm}(msm.est = estimates.more.4, boot.message = F, boot.sim = 10, 
+    nsim = 1000, K = 1000, m = 200, n = \hlfunctioncall{rep}(100, 200), start = \hlfunctioncall{c}(0.25, 1.2))
+
+bootmore <- \hlfunctioncall{round}(\hlfunctioncall{rbind}(\hlfunctioncall{c}(boot.more1$boot.mu, boot.more1$boot.mu.se), \hlfunctioncall{c}(boot.more1$boot.sigma2, 
+    boot.more1$boot.sigma2.se), \hlfunctioncall{c}(boot.more2$boot.mu, boot.more2$boot.mu.se), 
+    \hlfunctioncall{c}(boot.more2$boot.sigma2, boot.more2$boot.sigma2.se), \hlfunctioncall{c}(boot.more3$boot.mu, 
+        boot.more3$boot.mu.se), \hlfunctioncall{c}(boot.more3$boot.sigma2, boot.more3$boot.sigma2.se), 
+    \hlfunctioncall{c}(boot.more4$boot.mu, boot.more4$boot.mu.se), \hlfunctioncall{c}(boot.more4$boot.sigma2, 
+        boot.more4$boot.sigma2.se)), 3)
+\hlfunctioncall{rownames}(bootmore) <- \hlfunctioncall{c}(\hlstring{"1_mu"}, \hlstring{"1_sigma2"}, \hlstring{"2_mu"}, \hlstring{"2_sigma2"}, \hlstring{"3_mu"}, \hlstring{"3_sigma2"}, 
+    \hlstring{"4_mu"}, \hlstring{"4_sigma2"})
+\hlfunctioncall{colnames}(bootmore) <- \hlfunctioncall{c}(\hlstring{"Boot Estimate"}, \hlstring{"Boot SE"})
+bootmore
+\end{alltt}
+\begin{verbatim}
+##          Boot Estimate Boot SE
+## 1_mu             0.133   0.034
+## 1_sigma2         0.977   0.051
+## 2_mu             0.106   0.035
+## 2_sigma2         0.879   0.061
+## 3_mu             0.203   0.013
+## 3_sigma2         0.823   0.020
+## 4_mu             0.168   0.018
+## 4_sigma2         0.798   0.033
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{thebibliography}{}
+
+\bibitem[Jiang (1998)]{jiang}
+Jiang, J. (1998).
+\newblock Consistent Estimators in Generalized Linear Mixed Models.
+\newblock \emph{Journal of the American Statistical Association}, \textbf{93}, 720--729.
+
+\bibitem[Jiang and Zhang (2001)]{jiangzhang}
+Jiang, J. and Zhang, W. (2001).
+\newblock Robust estimation in generalized linear mixed models.
+\newblock \emph{Biometrika}, \textbf{88}, 753--765.
+
+\end{thebibliography}
+
+\end{document}
