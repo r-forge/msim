@@ -1,0 +1,417 @@
+\documentclass[11pt]{article}\usepackage[]{graphicx}\usepackage[]{color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.345, 0.345, 0.345}
+\newcommand{\hlnum}[1]{\textcolor[rgb]{0.686,0.059,0.569}{#1}}%
+\newcommand{\hlstr}[1]{\textcolor[rgb]{0.192,0.494,0.8}{#1}}%
+\newcommand{\hlcom}[1]{\textcolor[rgb]{0.678,0.584,0.686}{\textit{#1}}}%
+\newcommand{\hlopt}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlstd}[1]{\textcolor[rgb]{0.345,0.345,0.345}{#1}}%
+\newcommand{\hlkwa}[1]{\textcolor[rgb]{0.161,0.373,0.58}{\textbf{#1}}}%
+\newcommand{\hlkwb}[1]{\textcolor[rgb]{0.69,0.353,0.396}{#1}}%
+\newcommand{\hlkwc}[1]{\textcolor[rgb]{0.333,0.667,0.333}{#1}}%
+\newcommand{\hlkwd}[1]{\textcolor[rgb]{0.737,0.353,0.396}{\textbf{#1}}}%
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+\usepackage{indentfirst}
+\usepackage{natbib}
+\usepackage{url}
+\usepackage{pdfpages}  
+\usepackage[fleqn]{amsmath}    % need for subequations
+\usepackage{graphicx}   % need for figures
+\usepackage{verbatim}   % useful for program listings
+\usepackage{color}      % use if color is used in text
+\usepackage{subfigure}  % use for side-by-side figures
+\usepackage{hyperref}   % use for hypertext links, including those to external documents and URLs
+\usepackage[normalem]{ulem}
+\usepackage{amsfonts}
+\usepackage{fullpage}   
+\usepackage{natbib}  
+\usepackage[small,compact]{titlesec}  
+\title{\vspace{-7ex} \emph{msim} Package Design Document \vspace{-1ex}}
+\author{Lindsey Dietz  \vspace{-2ex}}
+\date{11-6-2013 \vspace{-2ex}}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\begin{document}
+\maketitle
+\setlength\parindent{0pt}
+
+\section{Background}
+
+A major difficulty in making inference about general linear mixed models (GLMMs) has been computational. To overcome numerical difficulties, alternative methods for inference have been proposed.  The first is the use of Laplace approximation which is utilized within the R package lme4.  The second is a form of likelihood evaluation which may be in the form of Monte Carlo, numerical integral approximation, or variational approximations.  \cite{jiang} proposed the method of simulated moments (MSM)  which will be the focus of the project.  \\
+
+MSM is methodology which is computationally feasible and consistent.  In applying the usual method of moments, one first identifies a set of sufficient statistics. A set of estimating equations is obtained by equating sample moments of the sufficient statistics to their expectations. Such expectations typically involve integrals, the highest dimension of which equals the number of sources of random effects.  Expectations are then simulated.  Finally, parameters are estimated by an appropriate optimization algorithm to solve the nonlinear system of equations.\\
+
+This limited scope package will seek to implement the MSM for a logistic mixed model and the Poisson-normal model.  In the future, it may be expanded to include other exponential families as well as more capabilities for users.\\
+
+\section{Method of Simulated Moments (MSM)}
+
+The general methodology for MSM will not be discussed in detail.  The goal of this version of the package is to implement logistic mixed model example discussed in section 2.1 of \cite{jiang} and to expand this to allow a user to input their own data.  The example and implementation will be discussed in detail in the following sections.\\
+
+\subsection{Logistic Mixed Model Methodology}
+
+Let $Y_{ij}$ be a Bernoulli response with $logit(P(y_{ij}=1)|\xi_1,...,\xi_m)=\mu+ \sigma\xi_i$, for $i=1,...,m$ independent subjects, with $j=1,..,n_i$ (possibly correlated) measurements per subject.   This implies that $Y_{ij}=1$ with probability $\frac{\exp(\mu+\sigma\xi_i)}{1+\exp(\mu+\sigma\xi_i)}$.\\
+
+The density for a single observation is
+\begin{align*}
+f(y_{ij}|\mu,\sigma,\xi_1,...,\xi_m)&=\left[\frac{\exp(\mu+\sigma\xi_i)}{1+\exp(\mu+\sigma\xi_i)}\right]^{y_{ij}}\left[\frac{1}{1+\exp(\mu+\sigma\xi_i)}\right]^{1-y_{ij}}\\
+&=\frac{\left[\exp(\mu+\sigma\xi_i)\right]^{y_{ij}}}{1+\exp(\mu+\sigma\xi_i)}\\
+&=\exp\left\{{y_{ij}}(\mu+\sigma\xi_i)-\log[1+\exp(\mu+\sigma\xi_i)]\right\}\\
+\end{align*}
+
+Thus, the density for each subject is 
+\begin{align*}
+f(y_i|\mu,\sigma,\xi_1,...,\xi_m)&=\prod_{j=1}^{n_i}\exp\left\{{y_{ij}}(\mu+\sigma\xi_i)-\log[1+\exp(\mu+\sigma\xi_i)]\right\}\\
+&=\exp\left\{{y_{i\cdot}}(\mu+\sigma\xi_i)-n_i\log[1+\exp(\mu+\sigma\xi_i)]\right\}\\
+\end{align*}
+where $y_{i\cdot}=\sum_{j=1}^{n_i}{y_{ij}}$.\\
+
+Therefore, the sufficient statistics are $(y_{1\cdot},...,y_{m\cdot})$ for parameters $(\mu,\sigma)$. 
+
+Now we can use the method of moments to find estimates of first and second moments of the sufficient statistic.  The system of equations we need to solve are 
+\begin{align*}
+\frac{1}{m}\sum_{i=1}^m y_{i\cdot}=E\left(\frac{1}{m}\sum_{i=1}^m y_{i\cdot}\right)=E(Y_{1\cdot})\\
+\frac{1}{m}\sum_{i=1}^m y_{i\cdot}^2=E\left(\frac{1}{m}\sum_{i=1}^m y_{i\cdot}^2\right)=E(Y_{1\cdot}^2) 
+\end{align*}
+
+$E(Y_{i\cdot})=\frac{1}{m}\sum_{i=1}^m\sum_{j=1}^{n_i} E(E(Y_{ij}|\xi_i))=n_iE\left(\frac{\exp(\mu+\sigma\xi_i)}{1+\exp(\mu+\sigma\xi_i)}\right)$\\
+\begin{align*}
+E(Y_{i\cdot}^2)&=\frac{1}{m}\sum_{i=1}^m E(E(Y_{i\cdot}^2|\xi_i))\\
+&=\frac{1}{m}\sum_{i=1}^m E\left[E\left\{\left(\sum_{j=1}^{n_i} Y_{ij}\right)^2|\xi_i\right\}\right]\\
+&=\frac{1}{m}\sum_{i=1}^m E\left[Var\left\{\sum_{j=1}^{n_i} Y_{ij}|\xi_i\right\}+E\left\{\sum_{j=1}^{n_i} Y_{ij}|\xi_i\right\}^2\right]\\
+&=\frac{1}{m}\sum_{i=1}^m E\left[n\frac{\exp(\mu+\sigma\xi_i)}{[1+\exp(\mu+\sigma\xi_i)]^2}+n^2 \frac{\exp(\mu+\sigma\xi_i)^2}{[1+\exp(\mu+\sigma\xi_i)]^2}\right]\\
+&= E\left[n_i\frac{\exp(\mu+\sigma\xi_i)}{[1+\exp(\mu+\sigma\xi_i)]^2}+{n_i}^2 \frac{\exp(\mu+\sigma\xi_i)^2}{[1+\exp(\mu+\sigma\xi_i)]^2}\right]\\
+&= n_iE\left[\frac{\exp(\mu+\sigma\xi_i)}{1+\exp(\mu+\sigma\xi_i)}\right]+n_i(n_i-1)E\left[ \frac{\exp(\mu+\sigma\xi_i)^2}{[1+\exp(\mu+\sigma\xi_i)]^2}\right]\\
+\end{align*}
+
+Let $h_{\mu,\sigma}(x)=\frac{\exp(\mu+\sigma x)}{1+\exp(\mu+\sigma x)}$.\\  Then we see that $E(Y_{i\cdot})=n_ih_{\mu,\sigma}(\xi)$ and  $E(Y_{i\cdot}^2)=n_ih_{\mu,\sigma}(\xi)+n_i(n_i-1)h_{\mu,\sigma}^2(\xi)$.\\
+
+Thus, the system of equations becomes:
+\begin{align*}
+\frac{1}{m}\sum_{i=1}^m \frac{y_{i\cdot}}{n_i}=E(h_{\mu,\sigma}(\xi))\\
+\frac{1}{m}\sum_{i=1}^m \frac{(y_{i\cdot}^2-y_{i\cdot})}{n_i(n_i-1)}=E(h_{\mu,\sigma}^2(\xi))
+\end{align*}
+
+Now, we generate $\xi_i \sim N(0,1)$ for $i=1,...,K$ and use these to generate estimates for the right sides of the system of equations. 
+
+\begin{align*}
+\frac{1}{m}\sum_{i=1}^m \frac{y_{i\cdot}}{n_i}=\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}(\xi_i)\\
+\frac{1}{m}\sum_{i=1}^m \frac{(y_{i\cdot}^2-y_{i\cdot})}{n_i(n_i-1)}=\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}^2(\xi_i)
+\end{align*}
+
+The solution to these equations can be found by a Newton-Raphson procedure according to \cite{jiang}.  We will utilize this and another possible method in implementation.  We will utilize the optimization abilities of R to solve for parameters of the squared Euclidean norm of the the equations.  This amounts to the minimization of 
+
+\begin{align*}
+\left[\frac{1}{m}\sum_{i=1}^m \frac{y_{i\cdot}}{n_i}-\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}(\xi_i)\right]^2+\left[\frac{1}{m}\sum_{i=1}^m \frac{(y_{i\cdot}^2-y_{i\cdot})}{n_i(n_i-1)}-\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}^2(\xi_i)\right]^2
+\end{align*}
+\\
+
+\subsection{Poisson Normal Model Methodology}
+
+Let $Y_{ij}$ be a Poisson response with $\log(\lambda_i)|(\xi_1,...,\xi_m)=\mu+ \sigma\xi_i$, for $i=1,...,m$ independent subjects, with $j=1,..,n_i$ (possibly correlated) measurements per subject.\\
+
+The density for a single observation is
+\begin{align*}
+f(y_{ij}|\lambda_i,\xi_1,...,\xi_m)&=\frac{\lambda_i^{y_{ij}}e^{-\lambda_i}}{y_{ij}!}\\
+&=\exp\{y_{ij}\log(\lambda_i)-\lambda_i-\log(y_{ij}!)\}\\
+&=\exp\{y_{ij}(\mu+\sigma\xi_i)-e^{\xi_i}-\log(y_{ij}!)\}
+\end{align*}
+
+Thus, the density for each subject is 
+\begin{align*}
+f(y_{i\cdot}|\mu,\sigma,\xi_1,...,\xi_m)&=\prod_{j=1}^{n_i}\exp\{y_{ij}(\mu+\sigma\xi_i)-e^{\xi_i}-\log(y_{ij}!)\}\\
+&=\exp\{y_{i\cdot}(\mu+\sigma\xi_i)-n_ie^{\xi_i}-\sum_{j=1}^{n_i}\log(y_{ij}!)\}\\
+\end{align*}
+where $y_{i\cdot}=\sum_{j=1}^{n_i}{y_{ij}}$.\\
+
+Therefore, the sufficient statistics are $(y_{1\cdot},...,y_{m\cdot})$ for parameters $(\mu,\sigma)$. 
+
+Now we can use the method of moments to find estimates of first and second moments of the sufficient statistic.  The system of equations we need to solve are 
+\begin{align*}
+\frac{1}{m}\sum_{i=1}^m y_{i\cdot}=E\left(\frac{1}{m}\sum_{i=1}^m y_{i\cdot}\right)=E(Y_{1\cdot})\\
+\frac{1}{m}\sum_{i=1}^m y_{i\cdot}^2=E\left(\frac{1}{m}\sum_{i=1}^m y_{i\cdot}^2\right)=E(Y_{1\cdot}^2) 
+\end{align*}
+
+$E(Y_{i\cdot})=\frac{1}{m}\sum_{i=1}^m\sum_{j=1}^{n_i} E(E(Y_{ij}|\xi_i))=n_iE(\exp(\mu+\sigma\xi_i))$\\
+\begin{align*}
+E(Y_{i\cdot}^2)&=\frac{1}{m}\sum_{i=1}^m E(E(Y_{i\cdot}^2|\xi_i))\\
+&=\frac{1}{m}\sum_{i=1}^m E\left[E\left\{\left(\sum_{j=1}^{n_i} Y_{ij}\right)^2|\xi_i\right\}\right]\\
+&=\frac{1}{m}\sum_{i=1}^m E\left[Var\left\{\sum_{j=1}^{n_i} Y_{ij}|\xi_i\right\}+E\left\{\sum_{j=1}^{n_i} Y_{ij}|\xi_i\right\}^2\right]\\
+&=\frac{1}{m}\sum_{i=1}^m E\left[n_i\exp(\mu+\sigma\xi_i)+n_i^2\exp(\mu+\sigma\xi_i)^2\right]\\
+&= E\left[n_i\exp(\mu+\sigma\xi_i)+{n_i}^2 \exp(\mu+\sigma\xi_i)^2\right]\\
+&= n_iE\left[\exp(\mu+\sigma\xi_i)\right]+n_i^2E\left[ \exp(\mu+\sigma\xi_i)^2\right]\\
+\end{align*}
+
+Let $h_{\mu,\sigma}(x)=\exp(\mu+\sigma x)$.\\  Then we see that $E(Y_{i\cdot})=n_ih_{\mu,\sigma}(\xi)$ and  $E(Y_{i\cdot}^2)=n_ih_{\mu,\sigma}(\xi)+n_i^2h_{\mu,\sigma}^2(\xi)$.\\
+
+Thus, the system of equations becomes:
+\begin{align*}
+\frac{1}{m}\sum_{i=1}^m \frac{y_{i\cdot}}{n_i}=E(h_{\mu,\sigma}(\xi))\\
+\frac{1}{m}\sum_{i=1}^m \frac{(y_{i\cdot}^2-y_{i\cdot})}{n_i^2}=E(h_{\mu,\sigma}^2(\xi))
+\end{align*}
+
+Now, we generate $\xi_i \sim N(0,1)$ for $i=1,...,K$ and use these to generate estimates for the right sides of the system of equations. 
+
+\begin{align*}
+\frac{1}{m}\sum_{i=1}^m \frac{y_{i\cdot}}{n_i}=\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}(\xi_i)\\
+\frac{1}{m}\sum_{i=1}^m \frac{(y_{i\cdot}^2-y_{i\cdot})}{n_i^2}=\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}^2(\xi_i)
+\end{align*}
+
+The solution to these equations can be found by a Newton-Raphson procedure according to \cite{jiang}.  We will utilize this and another possible method in implementation.  We will utilize the optimization abilities of R to solve for parameters of the squared Euclidean norm of the the equations.  This amounts to the minimization of 
+
+\begin{align*}
+\left[\frac{1}{m}\sum_{i=1}^m \frac{y_{i\cdot}}{n_i}-\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}(\xi_i)\right]^2+\left[\frac{1}{m}\sum_{i=1}^m \frac{(y_{i\cdot}^2-y_{i\cdot})}{n_i^2}-\frac{1}{K}\sum_{i=1}^K h_{\mu,\sigma}^2(\xi_i)\right]^2
+\end{align*}
+\\
+
+\section{Bootstrap Bias Correction}
+In practice, these estimates can be rather slow to converge to the true parameter values and implementation indicates a large bias in practice.  There also could be selection bias by the authors in the examples presented in their papers.  In order to alleviate some of this bias, we have implemented a parametric bootstrap bias-correction method which in practice has usually produced more reasonable results than the original MSM estimates.  The algorithm is as follows:
+
+\begin{enumerate}
+\item Use MSM to produce an estimates of $\theta=(\mu,\sigma)$; call this $\hat\theta$
+\item Simulate data from the logistic mixed model using $\hat\theta$ as the value for the parameter
+\item Use MSM on the simulated data to produce an estimate of $\hat\theta$; call this $\hat\theta^{(b)}$ where $b=1,...,B$
+\item We assume $\hat\theta-\theta\approx \hat\theta-\hat\theta^{(b)}$ thus, $\theta\approx 2\hat\theta-\hat\theta^{(b)}$; calculate $\tilde\theta^{(b)}= 2\hat\theta-\hat\theta^{(b)}$
+\item Repeat steps 2-4 $B$ times
+\item Average the $B$ estimates, $\displaystyle \hat{\theta}_{boot}=\frac{1}{B}\sum_{b=1}^B \tilde\theta^{(b)}$ to give "bias-corrected" estimates of $\theta$; compute standard errors, $se(\hat{\theta}_{boot})=\displaystyle\sqrt{\frac{\frac{1}{B-1}\sum_{b=1}^B [\tilde\theta^{(b)}-\hat{\theta}_{boot}]^2}{B}}$
+\end{enumerate}
+
+\newpage\subsection{Logistic Mixed Model Practical Implementation}
+
+\emph{Step 1: Produce simulated data}\\
+This step is only necessary when real data is not available.  The supporting function \verb sim.data.fun  will first simulate independent $\xi_i\sim N(0,1), i=1,...,m$ random variables.  It will then take the true values of $\mu$ and $\sigma$ provided by the user and transform the standard normal variables via the linear transformation $logit(y_{ij})=\mu+\sigma\xi_i $.  Then a random draw from Bin$(1,(inv.logit(y_{ij}))$ will be done for each i and j using the \verb rbinom{stats}  and \verb inv.logit  functions.  \verb sim.data.fun  will return the matrix of $y_{ij}$ as well as $y_{i\cdot}=\sum_{j=1}^n y_{ij} $.  If real data is used, it must be provided in a matrix of 0's and 1's where the subjects correspond to rows and the repeated observations correspond to columns.  The functions can only currently support equal numbers of observations for each subject and cannot handle missing values.\\
+
+\emph{Step 2: Run the MSM}\\
+
+\emph{Step 2a}\\
+ The central function of the package is \verb msim  which is a wrapper for all the contributing functions.  In order to properly run the function, once must provide number of subjects, \verb m and the number of observations per subject, \verb n which must correspond exactly to the data.  One must also provide \verb K  which is the number of simulations used to calculate the expectations from the right sides of the estimating equations as discussed above in the methodology section.  The default for \verb K  is set at 1000.  \verb nsim  is the number of simulations for MSM to run.  The default is set at 1000.  The final estimates of the parameters are calculated by averaging the runs over the number of simulations.\\
+  
+When \verb true.mu  and \verb true.sigma  are provided, standard error estimates are calculated using $\sqrt{\frac{(\hat\theta-\theta)^2}{n}}$ where $\theta$ is the true value for each parameter.  When no value is provided for either parameter (meaning the package only lets you enter both or neither at this point), the standard errors are computed by $\sqrt{\frac{\frac{1}{n-1}\sum_{i=1}^n(\hat\theta_i-\bar\theta)^2}{n}}=\sqrt{\frac{s}{n}}$ where $s$ is the sample standard deviation.\\
+
+\emph{Step 2b}\\
+\verb msm  will call \verb solver.sim  in each iteration of the \verb nsim  runs.  In each run, the starting random seed will be incremented by 1 in order to draw a new random sample for the estimation procedure.  There are 3 methods which could be used to solve the nonlinear system of equations discussed in the methodology section.  The exact arguments are seen in the following section.\\
+
+\emph{Step 3: Run the bootstrap correction}\\
+ \verb boot.msm  utilizes the estimates produced from \verb msm  in order to hopefully eliminate some of the bias in the MSM estimates.  Currently, the running time for the function is fairly long, and the default is 10 which seems small, but seems to produce better estimates in simulations.
+
+\newpage\section{Central Functions}
+
+\subsection{msm}
+\begin{verb}
+msm(family="binomial", nsim=1000,K=100,m=NULL,n=NULL,y.i=NULL,start=c(0,1), set.seed=NULL,
+\end{verb}\\
+\begin{verb}
+true.mu=NULL, true.sigma=NULL,method="nleqslv")
+\end{verb}\\
+
+\emph{Summary}\\
+
+Function to produce averaged estimates of multiple runs of method of simulated moments.\\
+
+\emph{Formal arguments}
+\begin{itemize}
+\item[] \verb family - Exponential family to draw from; currently only accepts "binomial"
+\item[] \verb nsim - Number of simulations of MSM estimates; default is 1000
+\item[] \verb K -Number of values used to produce one Monte Carlo estimate for MSM; default is 100
+\item[] \verb m -Index of i (number of subjects); default is NULL
+\item[] \verb n -Index of j (number of observations per subject); default is NULL
+\item[] \verb y.i -Sums over j of the $y_{ij}$, produced by simulate.fun or provided by user; default is NULL
+\item[] \verb start - Vector of starting values for ($\mu,\sigma$); default values are (0,1)
+\item[] \verb method - One of ("multiroot","optim","nleqslv"); default is multiroot.  This determines the solver utilized within the MSM.  If multiroot is selected, the function will use the \verb multiroot{rootSolve}  function.  If optim is selected, the function will use the \verb optim{base}  function  to minimize the Euclidean norm of the system.  If nleqslv is chosen, \verb nleqslv{nleqslv}  will solve the system of equations using the Newton method.
+\end{itemize}
+
+\emph{Return Values}
+
+\begin{itemize}
+\item[] \verb mu - Averages $nsim$ estimates of $\mu$
+\item[] \verb mu.se - Averages $nsim$ estimates of root mean squared error $\mu$
+\item[] \verb sigma - Averages $nsim$ estimates of $\sigma$
+\item[] \verb sigma.se - Averages $nsim$ estimates of root mean squared error $\sigma$ 
+\item[] \verb sigma2 - Averages $nsim$ estimates of $\sigma^2$ based on squaring $\hat\sigma$
+\item[] \verb sigma2.se - Averages $nsim$ estimates of root mean squared error $\sigma^2$ \end{itemize}
+
+\newpage\subsection{boot.msm}
+\begin{verb}
+boot.msm(msm.est, boot.sim=10, family="binomial",nsim=1000,K=100, m,n,start=c(0,1))
+\end{verb}\\
+
+\emph{Formal arguments}
+\begin{itemize}
+\item[] \verb msm.est - A list of estimates produced by \verb msm()  function
+\item[] \verb boot.sim - Number of bootstraps to perform; default is 10
+\item[] \verb family - Exponential family to draw from; currently only accepts "binomial"
+\item[] \verb nsim - Number of simulations of MSM estimates; default is 1000
+\item[] \verb K -Number of values used to produce one Monte Carlo estimate for MSM; default is 100
+\item[] \verb m -Index of i (number of subjects); default is NULL
+\item[] \verb n -Index of j (number of observations per subject); default is NULL
+\item[] \verb start - Vector of starting values for ($\mu,\sigma$); default values are (0,1)
+\item[] \verb method - One of ("multiroot","optim","nleqslv"); default is multiroot.  This determines the solver utilized within the MSM.  If multiroot is selected, the function will use the \verb multiroot{rootSolve}  function.  If optim is selected, the function will use the \verb optim{base}  function  to minimize the Euclidean norm of the system.  If nleqslv is chosen, \verb nleqslv{nleqslv}  will solve the system of equations using the Newton method.
+\end{itemize}
+
+\emph{Return Values}
+
+\begin{itemize}
+\item[] \verb boot.mu - Averages $boot.sim$ estimates of $\mu$
+\item[] \verb boot.mu.mse - Averages $boot.sim$ estimates of root mean squared error $\mu$
+\item[] \verb boot.sigma - Averages $boot.sim$ estimates of $\sigma$
+\item[] \verb boot.sigma.mse - Averages $boot.sim$ estimates of root mean squared error $\sigma$ 
+\item[] \verb boot.sigma2 - Averages $boot.sim$ estimates of $\sigma^2$ based on squaring $\hat\sigma$
+\item[] \verb boot.sigma2.mse - Averages $boot.sim$ estimates of root mean squared error $\sigma^2$ \end{itemize}
+
+\newpage\section{Supporting Functions}
+
+\subsection{Inverse-Logit function}
+
+\begin{verb}
+inv.logit(x)
+\end{verb}\\
+
+\emph{Summary}\\
+
+This function is used for calculation of the Inverse-Logit function:
+\begin{align*}
+f(x)=\frac{e^x}{1+e^x}
+\end{align*}
+
+\emph{Formal Arguments}
+
+\begin{itemize}
+\item[] \verb x - real-valued argument (scalar or vector)
+\end{itemize}
+
+\emph{Return Values}\\
+
+The value of the function will be returned in corresponding scalar or vector form.\\
+
+\subsection{Simulating Binomial Data function}
+
+\begin{verb}
+sim.data.fun(m=NULL,n=NULL,true.mu=NULL,true.sigma=NULL,set.seed=NULL)
+\end{verb}\\
+
+\emph{Summary}\\
+
+This function will simulate the data for the logit-normal model.
+\begin{align*}
+logit(y_{ij})=\mu+\sigma\xi_i
+\end{align*}
+
+where $\xi_i\sim N(0,1)$.\\
+
+\emph{Formal Arguments}
+
+\begin{itemize}
+\item[] \verb m -Index of i (number of subjects); default is NULL
+\item[] \verb n -Index of j (number of observations per subject); default is NULL
+\item[] \verb true.mu -True value of $\mu$; default is NULL
+\item[] \verb true.sigma -True value of $\sigma$; default is NULL
+\item[] \verb set.seed - Random seed start value for reproducibility; default is NULL
+\end{itemize}
+
+\emph{Return Values}\\
+
+Two objects are returned by the function:
+
+\begin{itemize}
+\item[] \verb y - a matrix of generated $y_{ij}$ of dimension $m\times n$
+\item[] \verb y.i - a vector of $\displaystyle\sum_{j=1}^n y_{ij}$ of length $m$
+\end{itemize}
+
+\subsection{Solving MSM equations for logit-normal data function}
+
+\begin{verb}
+solver.sim(K=100, m,n,y.i,start=c(0,1), set.seed=NULL, true.mu=NULL,
+\end{verb}\\
+\begin{verb}
+true.sigma=NULL,method="nleqslv")
+\end{verb}\\
+
+\emph{Summary}\\
+
+Function to simulate one set of MSM estimates.\\
+
+\emph{Formal Arguments}
+
+\begin{itemize}
+\item[] \verb K - Number of values to produce one MSM; default is 100
+\item[] \verb m -Index of i (number of subjects); default is NULL
+\item[] \verb n -Index of j (number of observations per subject); default is NULL
+\item[] \verb y.i - Sums over j of the $y_{ij}$, produced by \verb sim.data.fun  or provide by user
+\item[] \verb start - Vector of starting values for ($\mu,\sigma$); default values are (0,1)
+\item[] \verb set.seed - Random seed start value for reproducibility; default is NULL
+\item[] \verb true.mu - True value of $\mu$; default is NULL
+\item[] \verb true.sigma - True value of $\sigma$; default is NULL
+\item[] \verb method - One of ("multiroot","optim","nleqslv"); default is nleqslv.  This determines the solver utilized within the MSM.  If multiroot is selected, the function will use the \verb multiroot{rootSolve}  function.  If optim is selected, the function will use the \verb optim{base}  function  to minimize the Euclidean norm of the system.  If nleqslv is chosen, \verb nleqslv{nleqslv}  will solve the system of equations using the Newton method.
+\end{itemize}
+
+\emph{Return Values}
+
+\begin{itemize}
+\item[] \verb par.1.mu - Estimate of $\mu$
+\item[] \verb mu.mse - Estimate of the mean squared error $\sigma^2$ based on the true value provided for $\mu$
+\item[] \verb par.1.sigma - Estimate of $\sigma$
+\item[] \verb par.1.sigma2 - Estimate of $\sigma^2$ based on squaring $\hat\sigma$
+\item[] \verb sigma2.mse - Estimate of the mean squared error $\sigma^2$ based on the true value provided for $\sigma$
+\end{itemize}
+
+\section{Dependencies}
+
+The current version of the package is dependent on other R packages.  These include:
+\begin{itemize}
+\item nleqslv: the function \verb nleqslv  is the main method to solve the nonlinear system of equations 
+\item rootSolve: the function \verb multiroot  is a backup method used to solve the nonlinear system of equations 
+\item lme4: this is only used within the vignette.
+\end{itemize}
+
+The goal of the final product, or possibly a next version of the product, is to remove all but essential dependencies.  Ideally, the only dependencies would be the base and stats packages, however, the necessary nonlinear equation solution function may have already been optimized for use in this setting.  
+
+\begin{thebibliography}{}
+
+\bibitem[Jiang (1998)]{jiang}
+Jiang, J. (1998).
+\newblock Consistent Estimators in Generalized Linear Mixed Models.
+\newblock \emph{Journal of the American Statistical Association}, \textbf{93}, 720--729.
+
+\bibitem[Jiang and Zhang (2001)]{jiangzhang}
+Jiang, J. and Zhang, W. (2001).
+\newblock Robust estimation in generalized linear mixed models.
+\newblock \emph{Biometrika}, \textbf{88}, 753--765.
+
+\end{thebibliography}
+
+\end{document}
